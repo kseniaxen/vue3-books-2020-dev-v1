@@ -43,7 +43,7 @@ div
             :key='index'
             :value='typeOption.value'
             :label='typeOption.text'
-            v-for='typeOption, index in state.typeOptions'
+            v-for='typeOption, index in suggestedTypes'
           )
       //- el-collapse-item(name='3')
       el-button(icon='el-icon-check' type="success" plain @click='applyFilter') Применить
@@ -116,6 +116,7 @@ export default {
     const books = computed(() => store.getters.books)
     const suggestedCountries = computed(() => store.getters.countries)
     const suggestedCities = computed(() => store.getters.cities)
+    const suggestedTypes = computed(() => store.getters.types)
     /* watch(() => countries.value, (newVal) => {
       state.suggestedCountries = newVal
       if (newVal[0].data.length === 0) {
@@ -278,7 +279,7 @@ export default {
     }
     return {
       state, // state
-      books, suggestedCountries, suggestedCities, // computed
+      books, suggestedCountries, suggestedCities, suggestedTypes, // computed
       /* booksInfiniteHandler, */ onSearchInputChange, countryItemSelected, countryInputChange,
       cityItemSelected, cityInputChange,
       applyFilter, showBookDetails, acceptAlert // methods
