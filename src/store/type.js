@@ -17,7 +17,7 @@ export default ({
             try {
                 const url = getters.baseRestApiUrl + '?controller=type&action=filter'
                 const requestData = {
-                    method: 'POST',
+                    method: 'GET',
                     mode: 'cors'
                 }
                 const request = new Request(url, requestData)
@@ -54,6 +54,9 @@ export default ({
     getters: {
         types (state) {
           return state.types
+        }, 
+        searchTypes(state){
+            return [state.types[0], state.types[1]]
         }
       }
 })
