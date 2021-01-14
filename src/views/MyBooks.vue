@@ -8,7 +8,7 @@ el-drawer(title="Фильтры" v-model='state.filterBarActive' size="350px")
           | Тип предложения
           i.header-icon.el-icon-place
       el-select(v-model='state.filter.type' clearable placeholder="выбрать тип")
-        el-option(:key='index' :value='typeOption.value' :label='typeOption.text' v-for='typeOption, index in state.typeOptions')
+        el-option(:key='index' :value='typeOption.value' :label='typeOption.text' v-for='typeOption, index in typeOptions')
     //- el-collapse-item(name='2')
     el-button(icon='el-icon-check' type="success" plain @click='applyFilter') Применить
 //- диалоговое окно добавления новой книги (по умолчанию скрыто)
@@ -19,7 +19,7 @@ el-dialog(
   width="350px"
 )
   .add-book-dialog-body
-    el-form.add-book-form(:model="state.currentBook" :rules="state.addBookFormRules" ref="state.currentBook")
+    el-form.add-book-form(:model="state.currentBook" :rules="state.addBookFormRules" ref="bookForm")
       el-form-item(label="Название книги" prop="title")
         el-input(placeholder='укажите название' v-model='state.currentBook.title')
       el-form-item(label="Тип"  prop="type")
@@ -82,8 +82,8 @@ el-row(type="flex" justify="center" align="center")
             h3
               span {{book.title}}
               span(v-if='book.volumeOrIssue') &nbsp;({{book.volumeOrIssue}})
-            h4(v-if='book.author') {{book.author}}
-            h4(v-else) -
+            h4(v-if='book.author') Автор:{{book.author}}
+            h4(v-else) Автор:-
             span(v-if='book.description') {{book.description}}
             span(v-else) -
             div(v-if='book.genre')
@@ -95,7 +95,7 @@ el-row(type="flex" justify="center" align="center")
           el-button(circle icon='el-icon-share' @click='startBookShare(book.id)')
 </template>
 <script>
-import { computed, reactive, /* onBeforeUnmount, */ /* watch, */ onMounted, onUnmounted, getCurrentInstance } from 'vue'
+import { computed, reactive, /* onBeforeUnmount, */ /* watch, */ onMounted, onUnmounted, getCurrentInstance, ref } from 'vue'
 import FilePreview from '../components/common/FilePreview'
 import store from '../store'
 import AutoComplete from '../components/common/AutoComplete'
@@ -105,6 +105,7 @@ export default {
   setup () {
     const app = getCurrentInstance()
     const notify = app.appContext.config.globalProperties.$notify
+    const bookForm = ref(null)
     const state = reactive({
       // Флаг отображения окна добавления/редактирования описания книги
       addBookDialogVisible: false,
@@ -154,11 +155,11 @@ export default {
       clearCountriesHandler: false,
       clearCitiesHandler: false,
       // TODO загружать типы книг с сервера
-      typeOptions: [
+      /*typeOptions: [
         {text: 'отдам', value: 1},
         {text: 'дам почитать', value: 2},
         {text: 'личная', value: 3}
-      ],
+      ],*/
       // статус отправки данных о новой/редактируемой книге на сервер
       submitStatus: '',
       // Флаг факта изменения списка книг после очередного срабатывания догрузки
@@ -185,6 +186,12 @@ export default {
     const currentBookType = computed(() => state.currentBook.type)
     // 
     const books = computed(() => store.getters.myBooks)
+    const typeOptions = computed(() => store.getters.types.map((item, index, types) =>
+       {return {
+        'text': item.name,
+        'value': item.id
+       }}
+    )) 
     /* watch(books, (newValue) => {
       if (newValue.length > 0){
         state.isSuggestionsShown = true
@@ -203,6 +210,7 @@ export default {
     // обработчик события жизненного цикла компонента:
     // был примонтирован к дереву
     onMounted(() => {
+      store.dispatch('loadTypes')
       // первый вызов метода получения порции моделей книг
       loadMoreBooks()
       // установка обработчика события прокрутки
@@ -299,7 +307,7 @@ export default {
     async function addBookDialogOk () {
       // если названия страны и/или города - новые -
       // добавляем в БД записи о них
-      if (!state.currentBook.country.id) {
+      /*if (!state.currentBook.country.id) {
         await store.dispatch('newCountry', {
           name: state.currentBook.country.name
         })
@@ -310,6 +318,27 @@ export default {
           .catch(err => {
             state.submitStatus = err.message
           })
+      }*/
+      let validationResults = false
+      try{
+        validationResults = await bookForm.value.validate()
+      }catch(ex){
+        console.log(ex)
+      }
+      console.log('validationResults',validationResults)
+      if(validationResults){
+        if(!state.currentBook.country.id){
+          await store.dispatch('newCountry',{
+            name: state.currentBook.country.name
+          })
+          .then(()=>{
+            state.currentBook.country.id=store.getters.newCountryId
+            state.submitStatus = 'OK'
+          })
+          .catch(err=>{
+            state.submitStatus = err.message
+          })
+        }
       }
       if (!state.currentBook.city.id) {
         await store.dispatch('newCity', {
@@ -503,13 +532,14 @@ export default {
     return {
       state, // state
       suggestedCountries, suggestedCities, selectedImage,
-      currentBookType, books, // computed
+      currentBookType, books, typeOption, // computed
       countryItemSelected, countryInputChange,
       cityItemSelected, cityInputChange,
       yearInputChange,
       onNewBookImagePreview,
       addBookDialogClosedHandler, addBookDialogOk,
-      onSearchInputChange, applyFilter // methods
+      onSearchInputChange, applyFilter, // methods
+      bookForm //refs
     }
   }
 }
